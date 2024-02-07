@@ -1,0 +1,208 @@
+const express = require("express");
+const router = express.Router();
+const { setupDatabase } = require("./database");
+
+router.get("/get_corn_users", (req, res) => {
+  setupDatabase().then((db) => {
+    const query = "SELECT * FROM corn_registration_data";
+    db.query(query, (err, result) => {
+      if (err) {
+        console.error("Error fetching Corn users:", err);
+        res.status(500).json({ message: "Error fetching Corn users" });
+      } else {
+        res.json(result);
+      }
+    });
+    db.release();
+  });
+});
+
+router.post("/get_corn_user", (req, res) => {
+  const teamName = req.body.teamName;
+
+  // Make sure 'teamName' is provided in the request body
+  if (!teamName) {
+    return res
+      .status(400)
+      .json({ message: "Missing 'teamName' in the request body" });
+  }
+
+  setupDatabase().then((db) => {
+    const query = "SELECT * FROM corn_registration_data WHERE teamName = ?";
+    db.query(query, [teamName], (err, result) => {
+      if (err) {
+        console.error("Error fetching user details:", err);
+        res.status(500).json({ message: "Error fetching user" });
+      } else {
+        res.json(result);
+      }
+    });
+    db.release();
+  });
+});
+
+// Define a route for fetching cotton users
+router.get("/get_cotton_users", (req, res) => {
+  setupDatabase().then((db) => {
+    const query = "SELECT * FROM cotton_registration_data";
+    db.query(query, (err, result) => {
+      if (err) {
+        console.error("Error fetching Cotton users:", err);
+        res.status(500).json({ message: "Error fetching Cotton users" });
+      } else {
+        res.json(result);
+      }
+    });
+    db.release();
+  });
+});
+
+router.post("/cornTeamMembers", (req, res) => {
+  setupDatabase()
+    .then((db) => {
+      try {
+        // Assuming you have the team ID in cornuser[0].id
+        const { id } = req.body;
+
+        // Query the database to fetch team members based on teamId
+        const query = "SELECT * FROM corn_team_members WHERE teamId = ?";
+        db.query(query, [id], (error, results) => {
+          if (error) {
+            console.error(
+              "Error fetching team members from the database:",
+              error
+            );
+            res.status(500).json({ message: "Error fetching team members" });
+          } else {
+            // Send the fetched team members data as a JSON response
+            res.status(200).json(results);
+          }
+          db.release();
+        });
+      } catch (error) {
+        console.error("Error handling team members fetch:", error);
+        res.status(500).json({ message: "Internal server error" });
+        db.release();
+      }
+    })
+    .catch((err) => {
+      console.error("Database setup error: " + err.message);
+      res.status(500).json({ message: "Database setup error" });
+      db.release();
+    });
+});
+
+router.post("/get_cotton_user", (req, res) => {
+  const teamname = req.body.teamName; // Assuming 'teamname' is in the request body
+
+  // Make sure 'teamname' is provided in the request body
+  if (!teamname) {
+    return res
+      .status(400)
+      .json({ message: "Missing 'teamname' in the request body" });
+  }
+
+  setupDatabase().then((db) => {
+    const query = "SELECT * FROM cotton_registration_data WHERE teamname = ?";
+    db.query(query, [teamname], (err, result) => {
+      if (err) {
+        console.error("Error fetching user details:", err);
+        res.status(500).json({ message: "Error fetching user details" });
+      } else {
+        res.json(result);
+      }
+    });
+    db.release();
+  });
+});
+
+router.post("/cottonTeamMembers", (req, res) => {
+  setupDatabase()
+    .then((db) => {
+      try {
+        // Assuming you have the team ID in cornuser[0].id
+        const { id } = req.body;
+
+        // Query the database to fetch team members based on teamId
+        const query = "SELECT * FROM cotton_team_members WHERE teamId = ?";
+        db.query(query, [id], (error, results) => {
+          if (error) {
+            console.error(
+              "Error fetching team members from the database:",
+              error
+            );
+            res.status(500).json({ message: "Error fetching team members" });
+          } else {
+            // Send the fetched team members data as a JSON response
+            res.status(200).json(results);
+          }
+        });
+        db.release();
+      } catch (error) {
+        console.error("Error handling team members fetch:", error);
+        res.status(500).json({ message: "Internal server error" });
+        db.release();
+      }
+    })
+    .catch((err) => {
+      console.error("Database setup error: " + err.message);
+      db.release();
+      res.status(500).json({ message: "Database setup error" });
+    });
+});
+
+router.delete("/deleteCornUser/:id", async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const db = await setupDatabase();
+    await db.beginTransaction();
+
+    // Delete the user from the team members table
+    const deleteTeamMembersSql =
+      "DELETE FROM corn_team_members WHERE teamId = ?";
+    await db.query(deleteTeamMembersSql, [userId]);
+
+    // Delete the user from the registration data table
+    const deleteUserSql = "DELETE FROM corn_registration_data WHERE id = ?";
+    await db.query(deleteUserSql, [userId]);
+
+    await db.commit();
+    res.send("Corn user and associated team members successfully deleted");
+    db.release();
+  } catch (error) {
+    await db.rollback();
+    console.error("Error deleting corn user:", error);
+    res.status(500).send("Failed to delete corn user");
+    db.release();
+  }
+});
+
+router.delete("/deleteCottonUser/:id", async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const db = await setupDatabase();
+    await db.beginTransaction();
+
+    // Delete the user from the team members table
+    const deleteTeamMembersSql =
+      "DELETE FROM cotton_team_members WHERE teamId = ?";
+    await db.query(deleteTeamMembersSql, [userId]);
+
+    // Delete the user from the registration data table
+    const deleteUserSql = "DELETE FROM cotton_registration_data WHERE id = ?";
+    await db.query(deleteUserSql, [userId]);
+
+    await db.commit();
+    res.send("Cotton user and associated team members successfully deleted");
+    db.release();
+  } catch (error) {
+    await db.rollback();
+    db.release();
+    console.error("Error deleting cotton user:", error);
+    res.status(500).send("Failed to delete cotton user");
+  }
+});
+
+module.exports = router;
